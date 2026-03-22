@@ -6,3 +6,7 @@ terraform.tfstate.*
 # Python virtual environments
 venv/
 .venv/
+plugins/
+plugings/
+config/
+logs/
