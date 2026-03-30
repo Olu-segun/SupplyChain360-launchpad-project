@@ -2,9 +2,7 @@
 ---
 x-airflow-common:
   &airflow-common
-  # In order to add custom dependencies or upgrade provider distributions you can use your extended image.
-  # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
-  # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
+  
   image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:3.1.8}
   # build: .
   env_file:
@@ -22,26 +20,32 @@ x-airflow-common:
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: 'http://airflow-apiserver:8080/execution/'
     AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW__API_AUTH__JWT_SECRET:-airflow_jwt_secret}
     AIRFLOW__API_AUTH__JWT_ISSUER: ${AIRFLOW__API_AUTH__JWT_ISSUER:-airflow}
-    # yamllint disable rule:line-length
-    # Use simple http server on scheduler for health checks
-    # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
-    # yamllint enable rule:line-length
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
-    # WARNING: Use _PIP_ADDITIONAL_REQUIREMENTS option ONLY for a quick checks
-    # for other purpose (development, test and especially production usage) build/extend Airflow image.
     _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-}
-    # The following line can be used to set a custom config file, stored in the local config folder
     AIRFLOW_CONFIG: '/opt/airflow/config/airflow.cfg'
-    PYTHONPATH: /opt/airflow/dags:/opt/airflow
+    PYTHONPATH: /opt/airflow
+    
+
+     # SMTP configuration for mail
+    AIRFLOW__SMTP__SMTP_HOST: smtp.gmail.com
+    AIRFLOW__SMTP__SMTP_PORT: 587
+    AIRFLOW__SMTP__SMTP_MAIL_FROM: "${SMTP_USER}"
+    AIRFLOW__SMTP__SMTP_STARTTLS: True
+    AIRFLOW__SMTP__SMTP_USER: '${SMTP_USER}'
+    AIRFLOW__SMTP__SMTP_PASSWORD: '${SMTP_PASSWORD}'
 
   volumes:
-    - ${AIRFLOW_PROJ_DIR:-.}/airflow/dags:/opt/airflow/dags
-    - ${AIRFLOW_PROJ_DIR:-.}/airflow/logs:/opt/airflow/logs
-    - ${AIRFLOW_PROJ_DIR:-.}/airflow/config:/opt/airflow/config
-    - ${AIRFLOW_PROJ_DIR:-.}/airflow/plugins:/opt/airflow/plugins
-    - ${AIRFLOW_PROJ_DIR:-.}/ingestion_layer:/opt/airflow/ingestion_layer
-    - ${AIRFLOW_PROJ_DIR:-.}/scripts:/opt/airflow/scripts
-    - C:/Users/PALMPAY/.aws:/home/airflow/.aws:ro
+  - ${AIRFLOW_PROJ_DIR:-.}/airflow/dags:/opt/airflow/dags
+  - ${AIRFLOW_PROJ_DIR:-.}/airflow/logs:/opt/airflow/logs
+  - ${AIRFLOW_PROJ_DIR:-.}/airflow/config:/opt/airflow/config
+  - ${AIRFLOW_PROJ_DIR:-.}/airflow/plugins:/opt/airflow/plugins
+
+  - ${AIRFLOW_PROJ_DIR:-.}/ingestion_layer:/opt/airflow/ingestion_layer
+  - ${AIRFLOW_PROJ_DIR:-.}/scripts:/opt/airflow/scripts
+
+  - C:/Users/PALMPAY/.aws:/home/airflow/.aws:ro
+
+
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -67,8 +71,7 @@ services:
     restart: always
 
   redis:
-    # Redis is limited to 7.2-bookworm due to licencing change
-    # https://redis.io/blog/redis-adopts-dual-source-available-licensing/
+    
     image: redis:7.2-bookworm
     expose:
       - 6379
@@ -82,8 +85,6 @@ services:
 
   airflow-apiserver:
     <<: *airflow-common
-    volumes:
-      - C:/Users/PALMPAY/.aws:/home/airflow/.aws:ro
     command: api-server
     ports:
       - "8080:8080"
@@ -98,12 +99,9 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
-    
 
   airflow-scheduler:
     <<: *airflow-common
-    volumes:
-      - C:/Users/PALMPAY/.aws:/home/airflow/.aws:ro
     command: scheduler
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
@@ -116,7 +114,6 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
-    
 
   airflow-dag-processor:
     <<: *airflow-common
@@ -135,8 +132,6 @@ services:
 
   airflow-worker:
     <<: *airflow-common
-    volumes:
-      - C:/Users/PALMPAY/.aws:/home/airflow/.aws:ro
     command: celery worker
     healthcheck:
       # yamllint disable rule:line-length
@@ -147,8 +142,7 @@ services:
       start_period: 30s
     environment:
       <<: *airflow-common-env
-      # Required to handle warm shutdown of the celery workers properly
-      # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
+      
       DUMB_INIT_SETSID: "0"
     restart: always
     depends_on:
@@ -262,7 +256,7 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
-      _PIP_ADDITIONAL_REQUIREMENTS: ''
+      _PIP_ADDITIONAL_REQUIREMENTS: 'apache-airflow-providers-snowflake'
     user: "0:0"
 
   airflow-cli:
@@ -280,9 +274,7 @@ services:
     depends_on:
       <<: *airflow-common-depends-on
 
-  # You can enable flower by adding "--profile flower" option e.g. docker-compose --profile flower up
-  # or by explicitly targeted on the command line e.g. docker-compose up flower.
-  # See: https://docs.docker.com/compose/profiles/
+  
   flower:
     <<: *airflow-common
     command: celery flower

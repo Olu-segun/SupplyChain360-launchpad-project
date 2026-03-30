@@ -1,6 +1,6 @@
 resource "aws_s3_bucket" "supplychain360-data-lake" {
   bucket = var.bucket_name
- 
+
   tags = {
     Name = "supplychain360-bucket"
   }

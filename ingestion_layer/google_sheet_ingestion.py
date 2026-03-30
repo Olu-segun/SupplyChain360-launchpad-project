@@ -1,15 +1,16 @@
-import pandas as pd
 import boto3
+import json
+import pandas as pd
 from io import BytesIO
 from datetime import datetime
 from tenacity import retry, stop_after_attempt, wait_exponential
 from googleapiclient.discovery import build
-import json
-from scripts.utils import get_logger, get_google_service_account_credentials
+from scripts.utils import get_google_service_account_credentials
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-# ----------------------------
-# CONFIG
-# ----------------------------
+
+# Configuration
+
 S3_BUCKET = "supplychain360-data-lake"
 TARGET_PREFIX = "raw/retail_store_locations/"
 STATE_FILE_KEY = "metadata/retail_store_locations_state.json"
@@ -18,19 +19,18 @@ SPREADSHEET_ID = "1r5VtrdRiW-5AmX-_GG-IXuVLzptwTTWb9_RC4A_dhgg"
 RANGE_NAME = "Sheet1!A:F"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
-# ----------------------------
-# LOGGER
-# ----------------------------
-logger = get_logger(__name__)
 
-# ----------------------------
-# AWS CLIENT
-# ----------------------------
+# Logger
+
+logger = LoggingMixin().log
+
+
+# AWS Client
 s3 = boto3.client("s3")
 
-# ----------------------------
-# RETRY WRAPPERS
-# ----------------------------
+
+# Retry Wrapper Logic
+
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
 def s3_get_object(bucket, key):
     return s3.get_object(Bucket=bucket, Key=key)
@@ -47,15 +47,15 @@ def load_state():
         response = s3_get_object(S3_BUCKET, STATE_FILE_KEY)
         return json.loads(response["Body"].read())
     except Exception:
-        logger.info("No existing state found. Starting fresh.")
+        logger.info("No existing state found. Starting fresh data ingestion.")
         return {"last_processed_date": None}
 
 def save_state(state):
     s3_put_object(S3_BUCKET, STATE_FILE_KEY, json.dumps(state))
 
-# ----------------------------
-# GOOGLE SHEETS EXTRACTION
-# ----------------------------
+
+# Google Sheet Data Extraction
+
 def fetch_google_sheet_data(creds):
     logger.info("Fetching data from Google Sheets")
 
@@ -75,9 +75,9 @@ def fetch_google_sheet_data(creds):
     # First row = header
     return pd.DataFrame(values[1:], columns=values[0])
 
-# ----------------------------
-# TRANSFORMATION + INCREMENTAL LOAD
-# ----------------------------
+
+# Transformation and Incremental Load
+
 def transform_data(df, last_processed_date):
     if df.empty:
         return df
@@ -92,9 +92,8 @@ def transform_data(df, last_processed_date):
 
     return df
 
-# ----------------------------
-# WRITE TO S3 (PARQUET)
-# ----------------------------
+
+# Write to s3 Bucket  in Parquet
 def write_to_s3(df):
     if df.empty:
         logger.info("No new data to write")
@@ -113,9 +112,9 @@ def write_to_s3(df):
 
     return df["store_open_date"].max().strftime("%Y-%m-%d")
 
-# ----------------------------
-# MAIN PIPELINE
-# ----------------------------
+
+# Main Pipeline 
+
 def google_sheet_ingestion_pipeline():
     logger.info("Starting Google Sheets ingestion pipeline")
 
@@ -147,8 +146,3 @@ def google_sheet_ingestion_pipeline():
 
     logger.info("Pipeline completed successfully")
 
-# ----------------------------
-# ENTRY POINT
-# ----------------------------
-if __name__ == "__main__":
-    google_sheet_ingestion_pipeline()

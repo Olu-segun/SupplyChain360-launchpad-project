@@ -6,6 +6,6 @@ pyarrow==23.0.1
 s3fs 
 tenacity
 google-api-python-client
-
+dbt-snowflake
 
 

@@ -1,12 +1,15 @@
 import json
+import gc
+import time
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
+import pyarrow.json as paj
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
 from botocore.exceptions import ClientError
-
-from scripts.utils import get_source_s3_client, get_destination_s3_client, get_logger
-
+from scripts.utils import get_source_s3_client, get_destination_s3_client
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 # ----------------------------
 # CONFIG
@@ -14,7 +17,8 @@ from scripts.utils import get_source_s3_client, get_destination_s3_client, get_l
 SOURCE_BUCKET = "supplychain360-data"
 TARGET_BUCKET = "supplychain360-data-lake"
 
-MAX_WORKERS = 7
+MAX_WORKERS = 4   # increase parallelism
+SLEEP_TIME = 0.1  # shorter sleep between tasks
 
 FOLDER_MAPPING = {
     "raw/inventory/": "raw/warehouse_inventory/",
@@ -26,27 +30,23 @@ FOLDER_MAPPING = {
 
 STATE_FILE_KEY = "metadata/_processed_files.json"
 
-
 # ----------------------------
 # LOGGER
 # ----------------------------
-logger = get_logger(__name__)
-
+logger = LoggingMixin().log
 
 # ----------------------------
 # AWS CLIENTS
 # ----------------------------
 source_s3 = get_source_s3_client()
-dest_s3 = get_destination_s3_client()
-
+destination_s3 = get_destination_s3_client()
 
 # ----------------------------
-# STATE MANAGEMENT (IDEMPOTENCY)
+# STATE MANAGEMENT
 # ----------------------------
-
 def load_processed_files():
     try:
-        response = dest_s3.get_object(Bucket=TARGET_BUCKET, Key=STATE_FILE_KEY)
+        response = destination_s3.get_object(Bucket=TARGET_BUCKET, Key=STATE_FILE_KEY)
         return set(json.loads(response["Body"].read()))
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchKey":
@@ -54,12 +54,9 @@ def load_processed_files():
             return set()
         raise
 
-
-
 def save_processed_files(processed_files):
     body = json.dumps(list(processed_files))
-    dest_s3.put_object(Bucket=TARGET_BUCKET, Key=STATE_FILE_KEY, Body=body)
-
+    destination_s3.put_object(Bucket=TARGET_BUCKET, Key=STATE_FILE_KEY, Body=body)
 
 # ----------------------------
 # LIST FILES
@@ -76,61 +73,64 @@ def list_files(prefix):
                 files.append(key)
     return files
 
+# ----------------------------
+# MEMORY DEBUG
+# ----------------------------
+def log_memory():
+    try:
+        import psutil, os
+        process = psutil.Process(os.getpid())
+        mem = process.memory_info().rss / 1024**2
+        logger.info(f"Memory usage: {mem:.2f} MB")
+    except:
+        pass
 
 # ----------------------------
-# READ FILE (NO TRANSFORMATION)
-# ----------------------------
-def read_file(key):
-    response = source_s3.get_object(Bucket=SOURCE_BUCKET, Key=key)
-
-    if key.endswith(".csv"):
-        return pd.read_csv(response["Body"])
-
-    elif key.endswith(".json"):
-        return pd.read_json(response["Body"], lines=True)
-
-    else:
-        raise ValueError("Unsupported format")
-
-
-# ----------------------------
-# WRITE PARQUET
-# ----------------------------
-def write_parquet(df, target_key):
-    buffer = BytesIO()
-    df.to_parquet(buffer, index=False, engine="pyarrow")
-    buffer.seek(0)
-
-    dest_s3.put_object(
-        Bucket=TARGET_BUCKET,
-        Key=target_key,
-        Body=buffer.getvalue()
-    )
-
-
-# ----------------------------
-# PROCESS FILE (PURE LOAD)
+# PROCESS FILE (Optimized)
 # ----------------------------
 def process_file(key, target_prefix):
-    logger.info(f"Loading {key}")
-
-    df = read_file(key)
+    logger.info(f"[START] Processing {key}")
+    response = source_s3.get_object(Bucket=SOURCE_BUCKET, Key=key)
 
     file_name = key.split("/")[-1]
     file_name = file_name.replace(".csv", ".parquet").replace(".json", ".parquet")
-
     target_key = f"{target_prefix}{file_name}"
 
-    write_parquet(df, target_key)
+    try:
+        if key.endswith(".csv"):
+            df = pd.read_csv(response["Body"])
+            table = pa.Table.from_pandas(df)
+        elif key.endswith(".json"):
+            # Use pandas for shipment JSON arrays
+            df = pd.read_json(response["Body"])
+            table = pa.Table.from_pandas(df)
+        else:
+            raise ValueError("Unsupported format")
 
-    logger.info(f"Saved to {target_key}")
+        buf = pa.BufferOutputStream()
+        pq.write_table(table, buf)
+
+        destination_s3.put_object(
+            Bucket=TARGET_BUCKET,
+            Key=target_key,
+            Body=buf.getvalue().to_pybytes()
+        )
+
+        logger.info(f"[SUCCESS] Saved → {target_key}")
+        log_memory()
+
+    except Exception as e:
+        logger.error(f"[FAILED] {key}: {e}")
+        raise
+    finally:
+        gc.collect()
 
 
 # ----------------------------
 # MAIN PIPELINE
 # ----------------------------
 def s3_ingestion_pipeline():
-    logger.info("Start data ingestion from source AWS s3 bucket...")
+    logger.info("Starting S3 ingestion pipeline...")
 
     processed_files = load_processed_files()
 
@@ -138,8 +138,6 @@ def s3_ingestion_pipeline():
         logger.info(f"Scanning {source_prefix}")
 
         all_files = list_files(source_prefix)
-
-        # Incremental + idempotent
         new_files = [f for f in all_files if f not in processed_files]
 
         logger.info(f"{len(new_files)} new files")
@@ -160,14 +158,7 @@ def s3_ingestion_pipeline():
                     processed_files.add(key)
                 except Exception as e:
                     logger.error(f"Failed: {key} -> {e}")
+                time.sleep(SLEEP_TIME)
 
     save_processed_files(processed_files)
-
-    logger.info("Pipeline completed.")
-
-
-# ----------------------------
-# ENTRY POINT
-# ----------------------------
-# if __name__ == "__main__":
-#     s3_ingestion_pipeline()
+    logger.info("Pipeline completed successfully.")

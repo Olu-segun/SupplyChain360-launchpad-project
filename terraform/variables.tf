@@ -26,5 +26,16 @@ variable "bucket_name" {
 }
 
 variable "public_key_path" {
-  default = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF4wJXQ1lwjhauiYH0+rfwodOm7GGRqdIGYe7wrn1hdl PALMPAY@DESKTOP-G7I205U"
+  type        = string
+  description = "Path to SSH public key file"
+}
+
+variable "snowflake_iam_user_arn" {
+  description = "Snowflake IAM User ARN from DESC INTEGRATION"
+  type        = string
+}
+
+variable "snowflake_external_id" {
+  description = "Snowflake External ID from DESC INTEGRATION"
+  type        = string
 }

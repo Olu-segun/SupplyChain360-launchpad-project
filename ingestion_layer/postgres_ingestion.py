@@ -1,119 +1,105 @@
+import json
 import pandas as pd
 from io import BytesIO
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from botocore.exceptions import ClientError
-from sqlalchemy import event
-from sqlalchemy.exc import OperationalError
-from scripts.utils import get_logger, get_db_engine, get_destination_s3_client
+from datetime import datetime
+from tenacity import retry, stop_after_attempt, wait_exponential
+from scripts.utils import get_db_engine, get_destination_s3_client
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 # ----------------------------
 # CONFIG
 # ----------------------------
 BUCKET = "supplychain360-data-lake"
 TARGET_PREFIX = "raw/store_sales_transactions/"
-CHUNK_SIZE = 10000
+STATE_FILE_KEY = "metadata/_processed_pg_sales.json"
 
-logger = get_logger(__name__)
+# ----------------------------
+# LOGGER
+# ----------------------------
+logger = LoggingMixin().log
+
+# ----------------------------
+# CLIENTS
+# ----------------------------
 s3 = get_destination_s3_client()
 
+# ----------------------------
+# RETRY WRAPPERS
+# ----------------------------
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+def s3_get_object(bucket, key):
+    return s3.get_object(Bucket=bucket, Key=key)
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+def s3_put_object(bucket, key, body):
+    return s3.put_object(Bucket=bucket, Key=key, Body=body)
 
 # ----------------------------
-# ENGINE — created once, reused across all tables
+# STATE MANAGEMENT
 # ----------------------------
-def get_engine_with_keepalive():
-    """
-    Creates an engine with TCP keepalive and a generous connect/statement
-    timeout so the SSL connection isn't silently dropped mid-read.
-    """
-    engine = get_db_engine(
-        connect_args={
-            "connect_timeout": 30,
-            "keepalives": 1,
-            "keepalives_idle": 30,       # send first keepalive after 30s idle
-            "keepalives_interval": 10,   # retry every 10s
-            "keepalives_count": 5,       # drop after 5 unanswered probes
-            "options": "-c statement_timeout=0",  # no server-side statement limit
-        }
-    )
-    return engine
-
-
-# ----------------------------
-# IDEMPOTENCY CHECK
-# ----------------------------
-def already_loaded(table_name):
-    key = f"{TARGET_PREFIX}{table_name}.parquet"
+def load_processed_tables():
     try:
-        s3.head_object(Bucket=BUCKET, Key=key)
-        return True
+        response = s3_get_object(BUCKET, STATE_FILE_KEY)
+        data = json.loads(response["Body"].read())
+        return set(data)
     except ClientError as e:
-        if e.response["Error"]["Code"] == "404":
-            return False
-        raise
+        if e.response["Error"]["Code"] == "NoSuchKey":
+            logger.info("No state file found, starting fresh.")
+            return set()
+        else:
+            logger.warning(f"Error loading state: {e}")
+            return set()
+    except Exception as e:
+        logger.warning(f"Unexpected error loading state: {e}")
+        return set()
 
+def save_processed_tables(processed):
+    try:
+        body = json.dumps(list(processed))
+        s3_put_object(BUCKET, STATE_FILE_KEY, body)
+    except Exception as e:
+        logger.error(f"Error saving state: {e}")
 
 # ----------------------------
-# S3 UPLOAD
+# EXTRACT & LOAD
 # ----------------------------
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2))
-def upload_to_s3(buffer, key):
-    s3.put_object(Bucket=BUCKET, Key=key, Body=buffer.getvalue())
-
-
-# ----------------------------
-# EXTRACT + LOAD
-# Reads all chunks into memory first, writes ONE parquet — no mid-loop S3 I/O.
-# This is the critical change: the DB connection stays active and uninterrupted
-# for the full read, and we never trigger the ~64s idle timeout between chunks.
-# ----------------------------
-@retry(
-    retry=retry_if_exception_type(OperationalError),
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=2),
-    reraise=True,
-)
 def extract_table_to_s3(table_name, engine):
     logger.info(f"Extracting {table_name}...")
 
-    target_key = f"{TARGET_PREFIX}{table_name}.parquet"
+    query = f'SELECT * FROM public."{table_name}"'
 
-    if already_loaded(table_name):
-        logger.info(f"Skipping {table_name} (already loaded)")
-        return
+    # Use context manager to ensure connection closes
+    with engine.connect() as conn:
+        df = pd.read_sql(query, conn)
 
-    # Stream chunks from DB and accumulate — no S3 round-trips during the read
-    chunks = []
-    try:
-        for chunk in pd.read_sql(
-            f'SELECT * FROM public."{table_name}"',
-            engine,
-            chunksize=CHUNK_SIZE,
-        ):
-            chunks.append(chunk)
-    except Exception as e:
-        logger.error(f"Failed reading table {table_name}: {e}")
-        raise
+    # Convert UUID/object columns to string safely
+    for col in df.select_dtypes(include=["object", "string"]).columns:
+        if not df[col].apply(lambda x: isinstance(x, (str, bytes)) or pd.isna(x)).all():
+            df[col] = df[col].astype(str)
 
-    if not chunks:
-        logger.warning(f"No rows found in {table_name}, skipping upload")
-        return
+    # Add ingestion timestamp
+    df["ingestion_timestamp"] = datetime.utcnow()
 
-    # Combine all chunks and write a single Parquet — O(1) S3 writes
-    df = pd.concat(chunks, ignore_index=True)
+    # Write to Parquet
     buffer = BytesIO()
-    df.to_parquet(buffer, engine="pyarrow", index=False)
+    df.to_parquet(buffer, index=False, engine="pyarrow")
     buffer.seek(0)
 
-    upload_to_s3(buffer, target_key)
-    logger.info(f"Saved {table_name} → s3://{BUCKET}/{target_key} ({len(df):,} rows)")
+    target_key = f"{TARGET_PREFIX}{table_name}.parquet"
+    s3_put_object(BUCKET, target_key, buffer.getvalue())
 
+    logger.info(f"Saved {table_name} to s3://{BUCKET}/{target_key}")
 
 # ----------------------------
 # MAIN PIPELINE
 # ----------------------------
 def postgres_ingestion_pipeline():
-    logger.info("Starting Postgres → S3 pipeline...")
+    logger.info("Start ingesting data from Postgres database to AWS s3 bucket...")
 
+    processed = load_processed_tables()
+
+    # Daily tables (incremental load)
     tables = [
         "sales_2026_03_10",
         "sales_2026_03_11",
@@ -124,21 +110,19 @@ def postgres_ingestion_pipeline():
         "sales_2026_03_16",
     ]
 
-    # Single engine, reused across all tables — avoids repeated auth + handshake
-    engine = get_engine_with_keepalive()
+    new_tables = [t for t in tables if t not in processed]
+    logger.info(f"{len(new_tables)} new tables to process")
 
-    try:
-        for table in tables:
-            try:
-                extract_table_to_s3(table, engine)
-            except Exception as e:
-                logger.error(f"Failed processing {table}: {e}")
-    finally:
-        engine.dispose()
-        logger.info("DB engine disposed.")
+    # Create engine once, but close connections per query
+    engine = get_db_engine()
 
-    logger.info("Pipeline completed.")
+    for table in new_tables:
+        try:
+            extract_table_to_s3(table, engine)
+            processed.add(table)
+        except Exception as e:
+            logger.error(f"Failed processing {table}: {e}")
 
+    save_processed_tables(processed)
+    logger.info("Pipeline completed successfully.")
 
-if __name__ == "__main__":
-    postgres_ingestion_pipeline()

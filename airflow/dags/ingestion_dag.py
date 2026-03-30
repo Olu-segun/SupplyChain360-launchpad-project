@@ -3,14 +3,13 @@ from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 import sys
 import os
-
-# Add project root to PYTHONPATH
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 default_args = {
-    "owner": "olukayode",
+    "owner": "olukayode_olusegun",
     "email": ["olukayodeoluseguno@gmail.com"],
     "email_on_failure": True,
+    "email_on_success": True,
     "email_on_retry": True,
     "retries": 3,
     "retry_delay": timedelta(minutes=1),
@@ -23,6 +22,7 @@ with DAG(
     catchup=False,
     tags=["s3", "postgres", "google_sheet"],
 ) as dag:
+    
 # -----------------------------
 # Lazy wrapper functions
 # -----------------------------

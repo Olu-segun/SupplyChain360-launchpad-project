@@ -1,16 +1,20 @@
 # Terraform state files
+terraform.tfvars
 terraform.tfstate
 terraform.tfstate.*
 .terraform/
 
 # Python virtual environments
 venv/
-.venv/
+.env
+scripts
 plugins/
-plugings/
+
 #
 logs/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+dbt_project.yml
