@@ -69,11 +69,11 @@ Airflow orchestrates:
 - Handled null values
 - Enforced referential integrity
 ## 🔁 Pipeline Features
-- ✅ Idempotent ingestion
-- ✅ Incremental loading
-- ✅ Retry mechanisms
-- ✅ Failure alerts
-- ✅ Partitioned data
+- Idempotent ingestion
+- Incremental loading
+- Retry mechanisms
+- Failure alerts
+- Partitioned data
 ----
 ## 🐳 Containerization
 The entire pipeline is containerized using Docker.
