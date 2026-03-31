@@ -46,11 +46,11 @@ Operational data is scattered across multiple systems:
 ----
 ## 🔄 Pipeline Workflow
 ### Airflow orchestrates:
-Extract data from all sources
-Load raw data into S3 (Parquet format)
-Ingest data into Snowflake (RAW schema)
-Transform data using dbt
-Run data quality checks
-Build analytical models
+- Extract data from all sources
+- Load raw data into S3 (Parquet format)
+- Ingest data into Snowflake (RAW schema)
+- Transform data using dbt
+- Run data quality checks
+- Build analytical models
 
 
