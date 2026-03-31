@@ -1,5 +1,5 @@
 # SupplyChain360 Unified Data Platform
----
+----
 ## 📌 Project Overview
 SupplyChain360 is a fast‑growing retail distribution company in the United States. The business faces operational inefficiencies such as frequent stockouts, overstocked warehouses, and delivery delays. Data fragmentation across multiple systems (store location, warehouses, suppliers, shipments, sales, warehouse and product) makes it difficult for leadership to gain timely insights.
 
@@ -9,7 +9,7 @@ This project builds a Unified Supply Chain Data Platform to centralize operation
 - 🚚 **Shipment tracking**
 - 🏭 **Warehouse efficiency analysis**
 - 🤝 **Supplier performance monitoring**
----
+----
 ## 🧠 Business Problem
 SupplyChain360 currently struggles with:
 - 📉 Frequent stockouts of high-demand products
@@ -21,7 +21,7 @@ Operational data is scattered across multiple systems:
 - 🗄️ S3 (CSV/JSON files)
 - 🛢️ PostgreSQL transactional database
 - 📊 Google Sheets
----
+----
 ## ⚙️ Tech Stack
 | Layer            | Tool           |
 | ---------------- | -------------- |
@@ -32,7 +32,7 @@ Operational data is scattered across multiple systems:
 | Infrastructure   | Terraform      |
 | Containerization | Docker         |
 | CI/CD            | GitHub Actions |
----
+----
 ## 📊 Data Sources
 | Source              | Type          | Frequency                     |
 | ------------------- | ------------- | ------------------------------|                 
@@ -68,5 +68,56 @@ Airflow orchestrates:
 - Removed duplicates
 - Handled null values
 - Enforced referential integrity
+## 🔁 Pipeline Features
+- ✅ Idempotent ingestion
+- ✅ Incremental loading
+- ✅ Retry mechanisms
+- ✅ Failure alerts
+- ✅ Partitioned data
+----
+## 🐳 Containerization
+The entire pipeline is containerized using Docker.
+
+docker build -t supplychain360 .
+⚙️ CI/CD Pipeline
+
+GitHub Actions handles:
+
+Code linting
+Formatting checks
+Docker image build
+Push to container registry
+☁️ Infrastructure (Terraform)
+S3 buckets
+Snowflake resources
+IAM roles
+Remote state backend
+🚀 How to Run
+1. Clone repo
+git clone <repo-url>
+2. Set environment variables
+cp .env.example .env
+3. Start Airflow
+docker-compose up
+4. Run dbt
+cd dbt
+dbt build
+📈 Business Insights (Optional)
+Products causing most stockouts
+Suppliers with late deliveries
+Warehouse inefficiencies
+Demand trends by region
+📊 Architecture Diagram
+
+(Add image in /docs/architecture.png)
+
+🎯 Outcome
+
+This platform enables:
+
+Real-time decision-making
+Reduced stockouts
+Optimized inventory
+Improved delivery performance
 
 
