@@ -97,6 +97,7 @@ The entire pipeline is containerized using Docker.
 1. Clone repo
 
 `git clone https://github.com/Olu-segun/supplyChain360-launchpad-project`
+
 2. Set environment variables
 
  `cp .env.example .env`
@@ -104,10 +105,11 @@ The entire pipeline is containerized using Docker.
 3. Start Airflow
 
  `docker-compose up`
+ 
 4. Run dbt
 
  `cd dbt`
- 
+
  `dbt build`
 
 ## 📈 Business Insights 
