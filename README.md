@@ -94,7 +94,7 @@ IAM roles
 Remote state backend
 🚀 How to Run
 1. Clone repo
-git clone <repo-url>
+git clone https://github.com/Olu-segun/supplyChain360-launchpad-project
 2. Set environment variables
 cp .env.example .env
 3. Start Airflow
