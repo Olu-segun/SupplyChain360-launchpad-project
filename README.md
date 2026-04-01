@@ -77,7 +77,8 @@ Airflow orchestrates:
 
 ## 🐳 Containerization
 The entire pipeline is containerized using Docker.
-- docker build -t supplychain360
+<!-- - docker build -t supplychain360 -->
+docker build -t supplychain360 .
 
 ## ⚙️ CI/CD Pipeline
 - GitHub Actions handles:
