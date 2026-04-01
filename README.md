@@ -77,31 +77,31 @@ Airflow orchestrates:
 ----
 ## 🐳 Containerization
 The entire pipeline is containerized using Docker.
+docker build -t supplychain360
 
-docker build -t supplychain360 .
-⚙️ CI/CD Pipeline
-
+## ⚙️ CI/CD Pipeline
 GitHub Actions handles:
-
 Code linting
 Formatting checks
 Docker image build
 Push to container registry
-☁️ Infrastructure (Terraform)
-S3 buckets
-Snowflake resources
-IAM roles
-Remote state backend
-🚀 How to Run
+
+## ☁️ Infrastructure (Terraform)
+- S3 buckets
+- Snowflake resources
+- IAM roles
+- Remote state backend
+
+## 🚀 How to Run
 1. Clone repo
-git clone https://github.com/Olu-segun/supplyChain360-launchpad-project
+- git clone https://github.com/Olu-segun/supplyChain360-launchpad-project
 2. Set environment variables
-cp .env.example .env
+- cp .env.example .env
 3. Start Airflow
-docker-compose up
+- docker-compose up
 4. Run dbt
-cd dbt
-dbt build
+- cd dbt
+- dbt build
 ## 📈 Business Insights 
 - Products causing most stockouts
 - Suppliers with late deliveries
