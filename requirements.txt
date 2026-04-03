@@ -1,4 +1,4 @@
-pandas
+pandas 
 gspread
 boto3
 psycopg2-binary
@@ -7,5 +7,6 @@ s3fs
 tenacity
 google-api-python-client
 dbt-snowflake
+apache-airflow-providers-snowflake
 
 

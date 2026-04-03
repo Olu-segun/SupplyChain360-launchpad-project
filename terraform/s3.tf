@@ -20,3 +20,13 @@ resource "aws_s3_object" "supplychain360_raw_folders" {
   bucket = aws_s3_bucket.supplychain360-data-lake.id
   key    = each.value
 }
+
+
+
+resource "aws_s3_bucket" "supplychain360-terraform-state-bucket" {
+  bucket = var.bucket_name
+
+  tags = {
+    Name = "supplychain360-terraform-state-bucket"
+  }
+}

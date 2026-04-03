@@ -54,11 +54,11 @@ Airflow orchestrates:
 - Build analytical models
 
 ## 🧱 Data Modeling
-#### Layers:
+Layers:
 - RAW → Unprocessed data
 - STAGING → Cleaned & standardized
 - MARTS → Business-ready models
-#### Example Models:
+Example Models:
 - fact_sales
 - dim_products
 - dim_suppliers

@@ -2,7 +2,7 @@ import boto3
 import json
 import pandas as pd
 from io import BytesIO
-from datetime import datetime
+from datetime import datetime,timezone
 from tenacity import retry, stop_after_attempt, wait_exponential
 from googleapiclient.discovery import build
 from scripts.utils import get_google_service_account_credentials
@@ -39,9 +39,9 @@ def s3_get_object(bucket, key):
 def s3_put_object(bucket, key, body):
     return s3.put_object(Bucket=bucket, Key=key, Body=body)
 
-# ----------------------------
-# STATE MANAGEMENT (IDEMPOTENCY)
-# ----------------------------
+
+# State Management 
+
 def load_state():
     try:
         response = s3_get_object(S3_BUCKET, STATE_FILE_KEY)
@@ -54,7 +54,7 @@ def save_state(state):
     s3_put_object(S3_BUCKET, STATE_FILE_KEY, json.dumps(state))
 
 
-# Google Sheet Data Extraction
+# Google Sheet Data Extraction 
 
 def fetch_google_sheet_data(creds):
     logger.info("Fetching data from Google Sheets")
@@ -72,11 +72,11 @@ def fetch_google_sheet_data(creds):
         logger.warning("No data found in Google Sheets")
         return pd.DataFrame()
 
-    # First row = header
+    # First row = header -> columns, rest = data
     return pd.DataFrame(values[1:], columns=values[0])
 
 
-# Transformation and Incremental Load
+# Transformation and Incremental Load 
 
 def transform_data(df, last_processed_date):
     if df.empty:
@@ -93,13 +93,13 @@ def transform_data(df, last_processed_date):
     return df
 
 
-# Write to s3 Bucket  in Parquet
+# Write to s3 Bucket in Parquet format
 def write_to_s3(df):
     if df.empty:
         logger.info("No new data to write")
         return None
 
-    ingestion_time = datetime.now()
+    ingestion_time = datetime.now(timezone.utc)
     file_name = f"retail_store_locations_{ingestion_time.strftime('%Y%m%d')}.parquet"
     s3_key = f"{TARGET_PREFIX}{file_name}"
 
@@ -113,32 +113,31 @@ def write_to_s3(df):
     return df["store_open_date"].max().strftime("%Y-%m-%d")
 
 
-# Main Pipeline 
+# Main Pipeline Function
 
 def google_sheet_ingestion_pipeline():
     logger.info("Starting Google Sheets ingestion pipeline")
 
-    # Load state
+    # Load state for incremental processing
     state = load_state()
     last_processed_date = state.get("last_processed_date")
 
-    # Fetch credentials once
+    # Fetch credentials once and reuse for all API calls
     creds = get_google_service_account_credentials(scopes=SCOPES)
 
-    # Extract
+    # Extract data from Google Sheets
     df = fetch_google_sheet_data(creds)
 
-    # Transform (incremental)
+    # Transform (incremental) and add metadata
     df = transform_data(df, last_processed_date)
-
-    # Add metadata
+    
     if not df.empty:
-        df["ingestion_timestamp"] = datetime.now()
+        df["ingestion_timestamp"] = datetime.now(timezone.utc)
 
-    # Load
+    # Load to S3 and get new max date for state update
     new_max_date = write_to_s3(df)
 
-    # Update state (idempotency)
+    # Update state (idempotency) only if we have a new max date to avoid overwriting with same state
     if new_max_date:
         state["last_processed_date"] = new_max_date
         save_state(state)

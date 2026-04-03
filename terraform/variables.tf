@@ -22,7 +22,6 @@ variable "bucket_name" {
   type        = string
   description = "This is s3 bucket name"
   default     = "supplychain360-data-lake"
-  sensitive   = true
 }
 
 variable "public_key_path" {

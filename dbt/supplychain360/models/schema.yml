@@ -1,20 +1,4 @@
 version: 2
-
-sources:
-  - name: raw
-    database: supplychain360_db
-    schema: raw
-
-    tables:
-      - name: store_locations
-      - name: products
-      - name: shipments
-      - name: sales
-      - name: suppliers
-      - name: inventory
-      - name: warehouses
-
-
 models:
   - name: stg_store_locations
     description: Staging table for store locations data.

@@ -1,0 +1,41 @@
+version: 2
+
+sources:
+  - name: raw
+    database: SUPPLYCHAIN360_DB
+    schema: RAW
+    tables:
+      - name: inventory
+        freshness:
+          warn_after: {count: 1, period: day}
+          error_after: {count: 2, period: day}
+        loaded_at_field: snapshot_date
+
+      - name: sales
+        freshness:
+          warn_after: {count: 1, period: day}
+          error_after: {count: 2, period: day}
+        loaded_at_field: |
+          TO_TIMESTAMP(ingestion_timestamp / 1000000)
+
+      - name: shipments
+        freshness:
+          warn_after: {count: 1, period: day}
+          error_after: {count: 2, period: day}
+        loaded_at_field: shipment_date   # adjust to your actual timestamp column
+
+      - name: products
+        identifier: PRODUCTS
+        freshness: null   # static dataset, no freshness check
+
+      - name: suppliers
+        identifier: SUPPLIERS
+        freshness: null   # static dataset, no freshness check
+
+      - name: warehouses
+        identifier: WAREHOUSES
+        freshness: null   # static dataset, no freshness check
+
+      - name: store_locations
+        identifier: STORE_LOCATIONS
+        freshness: null   # static dataset, no freshness check

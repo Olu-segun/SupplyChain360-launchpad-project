@@ -1,24 +1,24 @@
 import json
 import gc
-import time
 import pandas as pd
+import time
 import pyarrow as pa
 import pyarrow.parquet as pq
-import pyarrow.json as paj
 from io import BytesIO
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from botocore.exceptions import ClientError
 from scripts.utils import get_source_s3_client, get_destination_s3_client
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-# ----------------------------
-# CONFIG
-# ----------------------------
+
+# Configuration
+
 SOURCE_BUCKET = "supplychain360-data"
 TARGET_BUCKET = "supplychain360-data-lake"
 
-MAX_WORKERS = 4   # increase parallelism
-SLEEP_TIME = 0.1  # shorter sleep between tasks
+MAX_WORKERS = 4
+SLEEP_TIME = 0.1
 
 FOLDER_MAPPING = {
     "raw/inventory/": "raw/warehouse_inventory/",
@@ -30,20 +30,20 @@ FOLDER_MAPPING = {
 
 STATE_FILE_KEY = "metadata/_processed_files.json"
 
-# ----------------------------
-# LOGGER
-# ----------------------------
+
+# Logger
+
 logger = LoggingMixin().log
 
-# ----------------------------
-# AWS CLIENTS
-# ----------------------------
+
+# AWS Clients
+
 source_s3 = get_source_s3_client()
 destination_s3 = get_destination_s3_client()
 
-# ----------------------------
-# STATE MANAGEMENT
-# ----------------------------
+
+# State Management
+
 def load_processed_files():
     try:
         response = destination_s3.get_object(Bucket=TARGET_BUCKET, Key=STATE_FILE_KEY)
@@ -58,9 +58,9 @@ def save_processed_files(processed_files):
     body = json.dumps(list(processed_files))
     destination_s3.put_object(Bucket=TARGET_BUCKET, Key=STATE_FILE_KEY, Body=body)
 
-# ----------------------------
-# LIST FILES
-# ----------------------------
+
+# List files in S3 with pagination and filter for CSV/JSON
+
 def list_files(prefix):
     paginator = source_s3.get_paginator("list_objects_v2")
     pages = paginator.paginate(Bucket=SOURCE_BUCKET, Prefix=prefix)
@@ -73,9 +73,9 @@ def list_files(prefix):
                 files.append(key)
     return files
 
-# ----------------------------
-# MEMORY DEBUG
-# ----------------------------
+
+# Memory logging for debugging purposes 
+
 def log_memory():
     try:
         import psutil, os
@@ -85,9 +85,9 @@ def log_memory():
     except:
         pass
 
-# ----------------------------
-# PROCESS FILE (Optimized)
-# ----------------------------
+
+# Process single file: read, transform, write to S3
+
 def process_file(key, target_prefix):
     logger.info(f"[START] Processing {key}")
     response = source_s3.get_object(Bucket=SOURCE_BUCKET, Key=key)
@@ -97,19 +97,30 @@ def process_file(key, target_prefix):
     target_key = f"{target_prefix}{file_name}"
 
     try:
+        
+        # Read file into DataFrame based on extension
+        
         if key.endswith(".csv"):
             df = pd.read_csv(response["Body"])
-            table = pa.Table.from_pandas(df)
         elif key.endswith(".json"):
-            # Use pandas for shipment JSON arrays
             df = pd.read_json(response["Body"])
-            table = pa.Table.from_pandas(df)
         else:
             raise ValueError("Unsupported format")
 
+        
+        # Add metadata columns for traceability and debugging
+        
+        df["ingestion_timestamp"] = datetime.now(timezone.utc)
+        df["source_file"] = key
+
+        # Convert to Arrow Table for efficient Parquet writing and to handle complex data types better
+        table = pa.Table.from_pandas(df)
+
+        # Write to buffer in Parquet format using PyArrow for better performance and compatibility with complex data types
         buf = pa.BufferOutputStream()
         pq.write_table(table, buf)
 
+        # Upload to S3 as Parquet file
         destination_s3.put_object(
             Bucket=TARGET_BUCKET,
             Key=target_key,
@@ -126,9 +137,7 @@ def process_file(key, target_prefix):
         gc.collect()
 
 
-# ----------------------------
-# MAIN PIPELINE
-# ----------------------------
+# Main Pipeline Function
 def s3_ingestion_pipeline():
     logger.info("Starting S3 ingestion pipeline...")
 
@@ -162,3 +171,5 @@ def s3_ingestion_pipeline():
 
     save_processed_files(processed_files)
     logger.info("Pipeline completed successfully.")
+    
+    
