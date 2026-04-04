@@ -20,7 +20,7 @@ ON DATABASE SUPPLYCHAIN360_DB
 TO ROLE SUPPLYCHAIN360_ROLE;
 
 -- 4. Raw Schema (Ingestion Layer). Immutable raw data 
--- (ingested from s3 bucket) that serves as the source for all 
+-- ingested from s3 bucket that serves as the source for all 
 -- transformations. This schema is read-only for dbt models to ensure data integrity.
 
 GRANT USAGE 

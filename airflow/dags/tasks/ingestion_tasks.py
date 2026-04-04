@@ -1,6 +1,11 @@
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import TaskGroup
 
+""" 
+Create Ingestion Tasks for S3, Postgres, and Google Sheets. 
+ Each task will call the respective ingestion pipeline function 
+defined in the ingestion_layer modules.
+                                        """
 
 def run_s3_pipeline():
     from ingestion_layer.s3_ingestion import s3_ingestion_pipeline
