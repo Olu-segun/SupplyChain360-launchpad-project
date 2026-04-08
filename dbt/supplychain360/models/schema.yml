@@ -1,14 +1,76 @@
+# Thse are the staging models for the SupplyChain360 project. They are responsible for transforming raw data from the source 
+# tables into a format that is easier to work with for downstream analysis and reporting. 
+# Each staging model corresponds to a specific source table and includes detailed descriptions of the columns, 
+# as well as tests to ensure data quality and integrity. The staging models serve as an intermediate layer 
+# between the raw source data and the final marts, allowing for better organization and maintainability of the
+# data pipeline.
+
+
 version: 2
 models:
 
+# Adding stg_store_locations model with detailed description and test.  
   - name: stg_store_locations
     description: Staging table for store locations data
+    columns:
+      - name: store_id
+        description: The unique identifier for each store location
+        tests:
+          - unique
+          - not_null
 
+      - name: store_name
+        description: The name of the store location
+        tests:
+          - not_null
+
+      - name: address
+        description: The address of the store location
+        tests:
+          - not_null
+          
+
+# Adding stg_products model with detailed description and tests for product_id, product_name, and category.
   - name: stg_products
     description: Staging table for products data
+    columns:
+      - name: product_id
+        description: The unique identifier for each product
+        tests:
+          - unique
+          - not_null
 
+      - name: product_name
+        description: The name of the product
+        tests:
+          - not_null
+
+      - name: category
+        description: The category of the product
+        tests:
+          - not_null
+
+
+#  Adding stg_shipments model with detailed description and tests for shipment_id, shipment_date, and carrier.
   - name: stg_shipments
     description: Staging table for shipments data
+    columns:
+      - name: shipment_id
+        description: The unique identifier for each shipment
+        tests:
+          - unique
+          - not_null
+
+      - name: shipment_date
+        description: The date of the shipment
+        tests:
+          - not_null
+
+      - name: carrier
+        description: The carrier responsible for the shipment
+        tests:
+          - not_null
+
 
 # Adding stg_sales_transaction model with detailed column descriptions and tests
   - name: stg_sales_transaction
@@ -44,12 +106,33 @@ models:
               arguments:
                 expression: ">= 0"
 
-
+# Adding stg_suppliers model with detailed column descriptions and unique tests on supplier_id.
   - name: stg_suppliers
     description: Staging table for suppliers' data
+    columns:
+      - name: supplier_id
+        description: The unique identifier for each supplier
+        tests:
+          - unique
+          - not_null
+          
+      - name: supplier_name
+        description: The name of the supplier
+        tests:
+          - not_null
+
+      - name: contact_email
+        description: The contact email for the supplier
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "LIKE '%@%.%'"
 
   - name: stg_inventory
     description: Staging table for inventory data
+   
 
   - name: stg_warehouse
     description: Staging table for warehouse data
+    
