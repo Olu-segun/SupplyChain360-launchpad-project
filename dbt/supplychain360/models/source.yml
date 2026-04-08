@@ -1,3 +1,7 @@
+# This file defines the source configuration for the supplychain360 project in dbt. 
+# It specifies the source tables, their identifiers, and configurations such as freshness checks.
+
+
 version: 2
 
 sources:
@@ -6,6 +10,9 @@ sources:
     schema: RAW
 
     tables:
+# This is the source configuration for the inventory table. It includes a freshness check 
+# that warns if the data is older than 1 day and errors if it's older than 2 days. 
+#The loaded_at_field is set to ingestion_timestamp, which is used to determine the freshness of the data.
       - name: inventory
         identifier: INVENTORY
         config:
@@ -14,6 +21,9 @@ sources:
             warn_after: {count: 1, period: day}
             error_after: {count: 2, period: day}
 
+# This is the source configuration for the sales table. It includes a freshness check 
+# that warns if the data is older than 1 day and errors if it's older than 2 days. 
+# The loaded_at_field is set to ingestion_timestamp, which is used to determine the freshness of
       - name: sales
         identifier: SALES
         config:
@@ -22,6 +32,9 @@ sources:
             warn_after: {count: 1, period: day}
             error_after: {count: 2, period: day}
 
+# This is the source configuration for the shipments table. It includes a freshness check 
+# that warns if the data is older than 1 day and errors if it's older than 2 days. 
+# The loaded_at_field is set to ingestion_timestamp, which is used to determine the freshness of the data.
       - name: shipments
         identifier: SHIPMENTS
         config:
@@ -30,18 +43,23 @@ sources:
             warn_after: {count: 1, period: day}
             error_after: {count: 2, period: day}
 
+# This is the source configuration for the products table. It includes no freshness checks.
       - name: products
         identifier: PRODUCTS
         config: {}   # no freshness, empty config
 
+
+# This is the source configuration for the suppliers table. It includes no freshness checks.
       - name: suppliers
         identifier: SUPPLIERS
         config: {}   # no freshness, empty config
 
+# This is the source configuration for the warehouses table. It includes no freshness checks.
       - name: warehouses
         identifier: WAREHOUSES
         config: {}   # no freshness, empty config
 
+# This is the source configuration for the store_locations table. It includes no freshness checks.
       - name: store_locations
         identifier: STORE_LOCATIONS
         config: {}   # no freshness, empty config

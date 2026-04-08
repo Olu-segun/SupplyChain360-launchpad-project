@@ -28,7 +28,7 @@ models:
         description: The address of the store location
         tests:
           - not_null
-          
+
 
 # Adding stg_products model with detailed description and tests for product_id, product_name, and category.
   - name: stg_products
@@ -129,10 +129,47 @@ models:
               arguments:
                 expression: "LIKE '%@%.%'"
 
+
+# Adding stg_inventory model with detailed column descriptions and tests for inventory_id, product_id, and quantity_on_hand.
   - name: stg_inventory
     description: Staging table for inventory data
-   
+    columns:
+      - name: inventory_id
+        description: The unique identifier for each inventory record
+        tests:
+          - unique
+          - not_null
 
+      - name: product_id
+        description: The identifier for the product in inventory
+        tests:
+          - not_null
+
+      - name: quantity_on_hand
+        description: The quantity of the product currently in inventory
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+   
+# Adding stg_warehouse model with detailed description and tests for warehouse_id, warehouse_name, and location.
   - name: stg_warehouse
     description: Staging table for warehouse data
-    
+    columns:
+      - name: warehouse_id
+        description: The unique identifier for each warehouse
+        tests:
+          - unique
+          - not_null
+
+      - name: warehouse_name
+        description: The name of the warehouse
+        tests:
+          - not_null
+
+      - name: location
+        description: The location of the warehouse
+        tests:
+          - not_null
+          
