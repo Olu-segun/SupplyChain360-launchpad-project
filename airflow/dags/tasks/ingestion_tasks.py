@@ -21,8 +21,7 @@ def run_postgres_pipeline():
 
 
 def run_sheet_pipeline():
-    from ingestion_layer.google_sheet_ingestion import \
-        google_sheet_ingestion_pipeline
+    from ingestion_layer.google_sheet_ingestion import google_sheet_ingestion_pipeline
 
     google_sheet_ingestion_pipeline()
 

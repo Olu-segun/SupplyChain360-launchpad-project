@@ -48,8 +48,7 @@ destination_s3 = get_destination_s3_client()
 
 def load_processed_files():
     try:
-        response = destination_s3.get_object(
-            Bucket=TARGET_BUCKET, Key=STATE_FILE_KEY)
+        response = destination_s3.get_object(Bucket=TARGET_BUCKET, Key=STATE_FILE_KEY)
         return set(json.loads(response["Body"].read()))
     except ClientError as e:
         if e.response["Error"]["Code"] == "NoSuchKey":
@@ -60,8 +59,7 @@ def load_processed_files():
 
 def save_processed_files(processed_files):
     body = json.dumps(list(processed_files))
-    destination_s3.put_object(Bucket=TARGET_BUCKET,
-                              Key=STATE_FILE_KEY, Body=body)
+    destination_s3.put_object(Bucket=TARGET_BUCKET, Key=STATE_FILE_KEY, Body=body)
 
 
 # List files in S3 with pagination and filter for CSV/JSON
@@ -104,8 +102,7 @@ def process_file(key, target_prefix):
     response = source_s3.get_object(Bucket=SOURCE_BUCKET, Key=key)
 
     file_name = key.split("/")[-1]
-    file_name = file_name.replace(
-        ".csv", ".parquet").replace(".json", ".parquet")
+    file_name = file_name.replace(".csv", ".parquet").replace(".json", ".parquet")
     target_key = f"{target_prefix}{file_name}"
 
     try:

@@ -101,8 +101,7 @@ def extract_table_to_s3(table_name, engine):
 
 
 def postgres_ingestion_pipeline():
-    logger.info(
-        "Start ingesting data from Postgres database to AWS s3 bucket...")
+    logger.info("Start ingesting data from Postgres database to AWS s3 bucket...")
 
     processed = load_processed_tables()
 

@@ -75,10 +75,8 @@ def get_source_s3_client(region=REGION):
 
     ssm = get_ssm_client(region)
 
-    access_key = ssm.get_parameter(
-        Name="/source/aws/access_key")["Parameter"]["Value"]
-    secret_key = ssm.get_parameter(
-        Name="/source/aws/secret_key")["Parameter"]["Value"]
+    access_key = ssm.get_parameter(Name="/source/aws/access_key")["Parameter"]["Value"]
+    secret_key = ssm.get_parameter(Name="/source/aws/secret_key")["Parameter"]["Value"]
 
     _source_s3 = boto3.client(
         "s3",
@@ -126,8 +124,7 @@ def copy_object(source_bucket, source_key, dest_bucket, dest_key, region=REGION)
     destination_s3 = get_destination_s3_client(region)
 
     obj = source_s3.get_object(Bucket=source_bucket, Key=source_key)
-    destination_s3.put_object(
-        Bucket=dest_bucket, Key=dest_key, Body=obj["Body"].read())
+    destination_s3.put_object(Bucket=dest_bucket, Key=dest_key, Body=obj["Body"].read())
 
 
 # Postgress Database Credentials From AWS SSM and SQLAlchemy Engine Creation

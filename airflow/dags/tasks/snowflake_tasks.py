@@ -1,5 +1,4 @@
-from airflow.providers.snowflake.operators.snowflake import \
-    SQLExecuteQueryOperator
+from airflow.providers.snowflake.operators.snowflake import SQLExecuteQueryOperator
 
 """
 Create Snowflake Copy Tasks for each table to load data from S3 stage to Snowflake raw layer. 
