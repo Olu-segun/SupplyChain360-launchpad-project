@@ -1,34 +1,29 @@
 import json
-from datetime import datetime, timezone
-from io import BytesIO
-
 import pandas as pd
-from airflow.utils.log.logging_mixin import LoggingMixin
+from io import BytesIO
+from datetime import datetime, timezone
 from botocore.exceptions import ClientError
+from airflow.utils.log.logging_mixin import LoggingMixin
 from tenacity import retry, stop_after_attempt, wait_exponential
-
 from utils.credentials import get_db_engine, get_destination_s3_client
 
-# Configuration
 
+
+# Configuration
 BUCKET = "supplychain360-data-lake"
 TARGET_PREFIX = "raw/store_sales_transactions/"
 STATE_FILE_KEY = "metadata/_processed_pg_sales.json"
 
 
 # Logger
-
 logger = LoggingMixin().log
 
 
 # s3 Client
-
 s3 = get_destination_s3_client()
 
 
 # Retry Wrapper Logic
-
-
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
 def s3_get_object(bucket, key):
     return s3.get_object(Bucket=bucket, Key=key)
@@ -40,8 +35,6 @@ def s3_put_object(bucket, key, body):
 
 
 # State Management
-
-
 def load_processed_tables():
     try:
         response = s3_get_object(BUCKET, STATE_FILE_KEY)

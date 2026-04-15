@@ -1,11 +1,12 @@
+import sys
+import os
+from airflow import DAG
 from datetime import datetime, timedelta
-
 from tasks.dbt_tasks import run_dbt
 from tasks.ingestion_tasks import create_ingestion_group
 from tasks.snowflake_tasks import snowflake_copy_tasks
 from tasks.success_mail_alert import dag_success_alert
-
-from airflow import DAG
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Create Airflow DAG for SupplyChain360 Data Pipeline with Ingestion Tasks, Snowflake Copy Tasks, and DBT Transformations.
 
@@ -13,7 +14,7 @@ default_args = {
     "owner": "olukayode_olusegun",
     "email": ["olukayodeoluseguno@gmail.com"],
     "email_on_failure": True,
-    "email_on_success": dag_success_alert,
+    "on_success_callback": dag_success_alert,
     "email_on_retry": True,
     "retries": 3,
     "retry_delay": timedelta(minutes=1),

@@ -41,11 +41,9 @@ x-airflow-common:
   - ${AIRFLOW_PROJ_DIR:-.}/airflow/config:/opt/airflow/config
   - ${AIRFLOW_PROJ_DIR:-.}/airflow/plugins:/opt/airflow/plugins
   - ${AIRFLOW_PROJ_DIR:-.}/ingestion_layer:/opt/airflow/ingestion_layer
-  - ${AIRFLOW_PROJ_DIR:-.}/scripts:/opt/airflow/scripts
+  - ${AIRFLOW_PROJ_DIR:-.}/utils:/opt/airflow/utils
   - ${AIRFLOW_PROJ_DIR:-.}/dbt:/opt/airflow/dbt 
   - ./dbt/profiles.yml:/home/airflow/.dbt/profiles.yml
-  
-
   - C:/Users/PALMPAY/.aws:/home/airflow/.aws:ro
 
 

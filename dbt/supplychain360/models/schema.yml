@@ -24,8 +24,18 @@ models:
         tests:
           - not_null
 
-      - name: address
-        description: The address of the store location
+      - name: city
+        description: The city where the store location is situated
+        tests:
+          - not_null
+
+      - name: state
+        description: The state where the store location is situated
+        tests:
+          - not_null
+          
+      - name: region
+        description: The region where the store location is situated
         tests:
           - not_null
 
@@ -121,23 +131,14 @@ models:
         tests:
           - not_null
 
-      - name: contact_email
-        description: The contact email for the supplier
-        tests:
-          - not_null
-          - dbt_utils.expression_is_true:
-              arguments:
-                expression: "LIKE '%@%.%'"
-
 
 # Adding stg_inventory model with detailed column descriptions and tests for inventory_id, product_id, and quantity_on_hand.
   - name: stg_inventory
     description: Staging table for inventory data
     columns:
-      - name: inventory_id
-        description: The unique identifier for each inventory record
+      - name: warehouse_id
+        description: The unique identifier for the warehouse where the inventory is stored
         tests:
-          - unique
           - not_null
 
       - name: product_id
@@ -145,7 +146,7 @@ models:
         tests:
           - not_null
 
-      - name: quantity_on_hand
+      - name: quantity_available
         description: The quantity of the product currently in inventory
         tests:
           - not_null
@@ -153,7 +154,7 @@ models:
               arguments:
                 expression: ">= 0"
    
-# Adding stg_warehouse model with detailed description and tests for warehouse_id, warehouse_name, and location.
+# Adding stg_warehouse model with detailed description and tests for warehouse_id, state, and city.
   - name: stg_warehouse
     description: Staging table for warehouse data
     columns:
@@ -163,13 +164,13 @@ models:
           - unique
           - not_null
 
-      - name: warehouse_name
-        description: The name of the warehouse
+      - name: state
+        description: The location of the warehouse
         tests:
           - not_null
 
-      - name: location
-        description: The location of the warehouse
+      - name: city
+        description: The city where the warehouse is located
         tests:
           - not_null
           

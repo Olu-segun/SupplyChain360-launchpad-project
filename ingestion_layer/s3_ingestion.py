@@ -1,20 +1,18 @@
 import gc
 import json
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
 from io import BytesIO
-
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from airflow.utils.log.logging_mixin import LoggingMixin
+from datetime import datetime, timezone
 from botocore.exceptions import ClientError
-
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from airflow.utils.log.logging_mixin import LoggingMixin
 from utils.credentials import get_destination_s3_client, get_source_s3_client
 
-# Configuration
 
+# Configuration
 SOURCE_BUCKET = "supplychain360-data"
 TARGET_BUCKET = "supplychain360-data-lake"
 
@@ -177,3 +175,5 @@ def s3_ingestion_pipeline():
 
     save_processed_files(processed_files)
     logger.info("Pipeline completed successfully.")
+    
+s3_ingestion_pipeline()

@@ -1,17 +1,15 @@
 import json
-from datetime import datetime, timezone
-from io import BytesIO
-
 import boto3
 import pandas as pd
-from airflow.utils.log.logging_mixin import LoggingMixin
+from io import BytesIO
+from datetime import datetime, timezone
 from googleapiclient.discovery import build
+from airflow.utils.log.logging_mixin import LoggingMixin
 from tenacity import retry, stop_after_attempt, wait_exponential
-
 from utils.credentials import get_google_service_account_credentials
 
-# Configuration
 
+# Configuration
 S3_BUCKET = "supplychain360-data-lake"
 TARGET_PREFIX = "raw/retail_store_locations/"
 STATE_FILE_KEY = "metadata/retail_store_locations_state.json"
@@ -22,7 +20,6 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
 
 
 # Logger
-
 logger = LoggingMixin().log
 
 
@@ -31,8 +28,6 @@ s3 = boto3.client("s3")
 
 
 # Retry Wrapper Logic
-
-
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=10))
 def s3_get_object(bucket, key):
     return s3.get_object(Bucket=bucket, Key=key)
@@ -44,8 +39,6 @@ def s3_put_object(bucket, key, body):
 
 
 # State Management
-
-
 def load_state():
     try:
         response = s3_get_object(S3_BUCKET, STATE_FILE_KEY)
@@ -122,8 +115,6 @@ def write_to_s3(df):
 
 
 # Main Pipeline Function
-
-
 def google_sheet_ingestion_pipeline():
     logger.info("Starting Google Sheets ingestion pipeline")
 

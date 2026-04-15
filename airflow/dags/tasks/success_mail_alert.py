@@ -1,6 +1,5 @@
 from airflow.utils.email import send_email
 
-
 def dag_success_alert(context):
     send_email(
         to=["olukayodeoluseguno@gmail.com"],
